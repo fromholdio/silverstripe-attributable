@@ -5,6 +5,7 @@ namespace Fromholdio\Attributable\Model;
 use Fromholdio\Attributable\Extensions\Attributable;
 use Fromholdio\Attributable\Extensions\Attribute;
 use Psr\SimpleCache\CacheInterface;
+use SilverStripe\Control\Middleware\FlushMiddleware;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Flushable;
 use SilverStripe\Core\Injector\Injector;
@@ -37,6 +38,9 @@ class Attribution extends DataObject implements Flushable
         // retrieve from cache
         $cache = self::get_cache();
         $cacheKey = self::get_attributes_cache_key();
+        if (!$cache->has($cacheKey)) {
+            self::build_cache();
+        }
         if ($cache->has($cacheKey)) {
             return $cache->get($cacheKey);
         }
@@ -76,6 +80,9 @@ class Attribution extends DataObject implements Flushable
         // retrieve from cache
         $cache = self::get_cache();
         $cacheKey = self::get_objects_cache_key();
+        if (!$cache->has($cacheKey)) {
+            self::build_cache();
+        }
         if ($cache->has($cacheKey)) {
             return $cache->get($cacheKey);
         }
@@ -198,7 +205,10 @@ class Attribution extends DataObject implements Flushable
     public static function flush()
     {
         self::get_cache()->clear();
-        
+        self::build_cache();
+    }
+    
+    private static function build_cache() {
         // build attributes cache
         $attributes = [];
         $classes = ClassInfo::subclassesFor(DataObject::class);
@@ -230,7 +240,6 @@ class Attribution extends DataObject implements Flushable
         $cache = self::get_cache();
         $cacheKey = self::get_objects_cache_key();
         $cache->set($cacheKey, $objects);
-                
     }
     
     private static function get_cache() {
