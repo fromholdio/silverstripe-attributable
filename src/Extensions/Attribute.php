@@ -5,6 +5,7 @@ namespace Fromholdio\Attributable\Extensions;
 use Fromholdio\Attributable\Model\Attribution;
 use Fromholdio\Attributable\Forms\AttributeListboxField;
 use SilverStripe\Control\Controller;
+use SilverStripe\Core\ClassInfo;
 use SilverStripe\Forms\DropdownField;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\ORM\DataExtension;
@@ -128,19 +129,19 @@ class Attribute extends DataExtension
 
     public function getAttributedObjects($objClassName)
     {
-        if ($this->getOwner()->ID) {
+        if (!$this->getOwner()->ID) {
             return null;
         }
 
         $attributions = Attribution::get()->filter([
             'AttributeClass' => $this->getOwner()->getClassName(),
             'AttributeID' => $this->getOwner()->ID,
-            'ObjectClass' => $objClassName
+            'ObjectClass' => ClassInfo::subclassesFor($objClassName)
         ]);
 
         $objectIDs = $attributions->columnUnique('ObjectID');
 
-        if (empty($attributions)) {
+        if (empty($objectIDs)) {
             return null;
         }
 
