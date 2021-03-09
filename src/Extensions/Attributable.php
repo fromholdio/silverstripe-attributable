@@ -26,17 +26,6 @@ class Attributable extends DataExtension
         'Attributions'
     ];
 
-    public static function add_to_class($class, $extensionClass, $args = null)
-    {
-        $classInst = $class::singleton();
-        if ($classInst->hasMethod('isAttributeFilterOnly')) {
-            if ($classInst->isAttributeFilterOnly()) {
-                return;
-            }
-        }
-        Attribution::register_object($class);
-    }
-
     public function getAttributes($attrClass, $scopeObject = null)
     {
         if (!$this->owner->ID) {

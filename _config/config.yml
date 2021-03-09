@@ -1,3 +1,9 @@
 ---
 Name: fromholdio-attributable
 ---
+
+SilverStripe\Core\Injector\Injector:
+  Psr\SimpleCache\CacheInterface.AttributionCache:
+    factory: SilverStripe\Core\Cache\CacheFactory
+    constructor:
+      namespace: "AttributionCache"
