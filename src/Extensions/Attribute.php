@@ -133,10 +133,14 @@ class Attribute extends DataExtension
             return null;
         }
 
+        $objClasses = is_array($objClassName)
+            ? $objClassName
+            : ClassInfo::subclassesFor($objClassName);
+
         $attributions = Attribution::get()->filter([
             'AttributeClass' => $this->getOwner()->getClassName(),
             'AttributeID' => $this->getOwner()->ID,
-            'ObjectClass' => ClassInfo::subclassesFor($objClassName)
+            'ObjectClass' => $objClasses
         ]);
 
         $objectIDs = $attributions->columnUnique('ObjectID');
