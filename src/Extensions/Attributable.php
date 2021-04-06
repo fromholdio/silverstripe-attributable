@@ -281,6 +281,15 @@ class Attributable extends DataExtension
             $classes = Attribution::get_attributes();
         }
 
+        $disallowed = $this->getOwner()->config()->get('disallowed_attributes');
+        if (!empty($disallowed)) {
+            foreach ($disallowed as $class) {
+                if (isset($classes[$class])) {
+                    unset($classes[$class]);
+                }
+            }
+        }
+
         return $classes;
     }
 
