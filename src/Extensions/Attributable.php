@@ -218,9 +218,7 @@ class Attributable extends DataExtension
             $fields[] = $saveField;
         }
 
-        if ($this->owner->hasMethod('updateAttributesFields')) {
-            $fields = $this->owner->updateAttributesFields($fields);
-        }
+        $this->getOwner()->invokeWithExtensions('updateAttributesFields', $fields);
 
         return $fields;
     }
