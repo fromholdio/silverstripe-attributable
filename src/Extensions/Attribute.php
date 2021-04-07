@@ -165,7 +165,7 @@ class Attribute extends DataExtension
 
         $filter = ['ID' => $objectIDs];
 
-        return $objClassName::get()->filter($filter);
+        return $objClassesCommon::get()->filter($filter);
     }
 
     public function getAttributeType()
