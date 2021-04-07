@@ -4,6 +4,7 @@ namespace Fromholdio\Attributable\Model;
 
 use Fromholdio\Attributable\Extensions\Attributable;
 use Fromholdio\Attributable\Extensions\Attribute;
+use Fromholdio\CommonAncestor\CommonAncestor;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DataObjectInterface;
@@ -188,5 +189,75 @@ class Attribution extends DataObject
         parent::onBeforeWrite();
         $this->AttributeKey = $this->AttributeClass . '|' . $this->AttributeID;
         $this->ObjectKey = $this->ObjectClass . '|' . $this->ObjectID;
+    }
+
+    public static function get_related_objects($attrClassName, array $attrIDs, array $objClassNames)
+    {
+        if (!self::validate_attribute($attrClassName)) {
+            throw new \UnexpectedValueException(
+                'Please provide a valid Attribute class name.'
+            );
+        }
+        if (empty($objClassNames) || empty($attrIDs)) {
+            throw new \UnexpectedValueException(
+                'get_related_objects needs class names and attr id arrays that are not empty.'
+            );
+        }
+        $objCommonClassName = CommonAncestor::get_closest($objClassNames);
+        if ($objCommonClassName === DataObject::class) {
+            throw new \UnexpectedValueException(
+                'get_related_objects needs $objClassNames with a common ancestor other than DataObject.'
+            );
+        }
+
+        if (is_array($attrClassName))
+        {
+            $attrClassNames = $attrClassName;
+            $attrCommonClassName = CommonAncestor::get_closest($attrClassNames);
+            if ($attrCommonClassName === DataObject::class) {
+                throw new \InvalidArgumentException(
+                    'If you pass an array of class names to get_related_objects they must '
+                    . 'have a common ancestor class other than DataObject.'
+                );
+            }
+        }
+        else {
+            $attrClassNames = ClassInfo::subclassesFor($attrClassName);
+            $attrCommonClassName = $attrClassName;
+        }
+
+        $matchObjIDs = [];
+        if ($attrCommonClassName::has_extension(Attribute::class))
+        {
+            $attributions = Attribution::get()->filter([
+                'AttributeClass' => $attrClassNames,
+                'AttributeID' => $attrIDs,
+                'ObjectClass' => $objClassNames
+            ]);
+            if ($attributions->count() > 0) {
+                $attributedObjIDs = $attributions->columnUnique('ObjectID');
+                foreach ($attributedObjIDs as $id) {
+                    $matchObjIDs[$id] = $id;
+                }
+            }
+        }
+        if ($attrCommonClassName::has_extension(Attributable::class))
+        {
+            $attributions = Attribution::get()->filter([
+                'AttributeClass' => $objClassNames,
+                'ObjectClass' => $attrClassNames,
+                'ObjectID' => $attrIDs
+            ]);
+            if ($attributions->count() > 0)
+            {
+                $attributeIDs = $attributions->columnUnique('AttributeID');
+                foreach ($attributeIDs as $id) {
+                    $matchObjIDs[$id] = $id;
+                }
+            }
+        }
+
+        $matchObjIDs = empty($matchObjIDs) ? ['-1'] : $matchObjIDs;
+        return $objCommonClassName::get()->filter('ID', $matchObjIDs);
     }
 }

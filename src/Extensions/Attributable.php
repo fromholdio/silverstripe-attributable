@@ -319,4 +319,13 @@ class Attributable extends DataExtension
         }
         return isset($allowedAttrs[$className]);
     }
+
+    public function getRelatedObjectsByAttribute($attribute, array $objClassNames)
+    {
+        return Attribution::get_related_objects(
+            get_class($attribute),
+            [$attribute->ID],
+            $objClassNames
+        );
+    }
 }
