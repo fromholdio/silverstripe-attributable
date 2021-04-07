@@ -4,10 +4,12 @@ namespace Fromholdio\Attributable\Extensions;
 
 use Fromholdio\Attributable\Model\Attribution;
 use Fromholdio\CommonAncestor\CommonAncestor;
+use SilverStripe\Core\ClassInfo;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\FormField;
 use SilverStripe\Forms\HiddenField;
 use SilverStripe\ORM\DataExtension;
+use SilverStripe\ORM\DataObject;
 
 class Attributable extends DataExtension
 {
@@ -43,10 +45,26 @@ class Attributable extends DataExtension
             return null;
         }
 
+        if (is_array($attrClass))
+        {
+            $attrClasses = $attrClass;
+            $attrClassesCommon = CommonAncestor::get_closest($attrClasses);
+            if ($attrClassesCommon === DataObject::class) {
+                throw new \InvalidArgumentException(
+                    'If you pass an array of class names to getAttributes they must '
+                    . 'have a common ancestor class other than DataObject.'
+                );
+            }
+        }
+        else {
+            $attrClasses = ClassInfo::subclassesFor($attrClass);
+            $attrClassesCommon = $attrClass;
+        }
+
         $attributions = Attribution::get()->filter([
             'ObjectClass' => $this->owner->getClassName(),
             'ObjectID' => $this->owner->ID,
-            'AttributeClass' => $attrClass
+            'AttributeClass' => $attrClasses
         ]);
 
         $attributeIDs = $attributions->columnUnique('AttributeID');
@@ -58,13 +76,13 @@ class Attributable extends DataExtension
         $filter = ['ID' => $attributeIDs];
 
         if ($scopeObject && $scopeObject->exists()) {
-            $scopeField = $attrClass::singleton()->config()->get('attribute_scope_field');
+            $scopeField = $attrClassesCommon::singleton()->config()->get('attribute_scope_field');
             if ($scopeField) {
                 $filter[$scopeField] = $scopeObject->ID;
             }
         }
 
-        return $attrClass::get()->filter($filter);
+        return $attrClassesCommon::get()->filter($filter);
     }
 
     public function syncAttributes($attrClass, array $attrIDs, $scopeObject = null)
