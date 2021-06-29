@@ -28,6 +28,10 @@ class Attributable extends DataExtension
         'Attributions'
     ];
 
+    private static $cascade_duplicates = [
+        'Attributions'
+    ];
+
     public static function add_to_class($class, $extensionClass, $args = null)
     {
         $classInst = $class::singleton();
