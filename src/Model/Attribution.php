@@ -4,13 +4,17 @@ namespace Fromholdio\Attributable\Model;
 
 use Fromholdio\Attributable\Extensions\Attributable;
 use Fromholdio\Attributable\Extensions\Attribute;
+use Psr\SimpleCache\CacheInterface;
+use SilverStripe\Control\Middleware\FlushMiddleware;
 use Fromholdio\CommonAncestor\CommonAncestor;
 use SilverStripe\Core\ClassInfo;
+use SilverStripe\Core\Flushable;
+use SilverStripe\Core\Injector\Injector;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DataObjectInterface;
 use SilverStripe\Versioned\Versioned;
 
-class Attribution extends DataObject
+class Attribution extends DataObject implements Flushable
 {
     private static $table_name = 'Attribution';
     private static $singular_name = 'Attribution';
@@ -30,25 +34,18 @@ class Attribution extends DataObject
         'Object' => DataObject::class
     ];
 
-    protected static $attributes = [];
-    protected static $objects = [];
-
-    public static function register_attribute($class)
-    {
-        self::validate_attribute($class);
-        self::$attributes[$class] = $class;
-    }
-
-    public static function register_object($class)
-    {
-        self::validate_object($class);
-        self::$objects[$class] = $class;
-    }
-
     public static function get_attributes()
     {
-        $classes = self::$attributes;
-        return $classes;
+        // retrieve from cache
+        $cache = self::get_cache();
+        $cacheKey = self::get_attributes_cache_key();
+        if (!$cache->has($cacheKey)) {
+            self::build_cache();
+        }
+        if ($cache->has($cacheKey)) {
+            return $cache->get($cacheKey);
+        }
+        return null;
     }
 
     public static function get_attributes_for_dropdown($usePlural = false)
@@ -81,8 +78,16 @@ class Attribution extends DataObject
 
     public static function get_objects()
     {
-        $classes = self::$objects;
-        return $classes;
+        // retrieve from cache
+        $cache = self::get_cache();
+        $cacheKey = self::get_objects_cache_key();
+        if (!$cache->has($cacheKey)) {
+            self::build_cache();
+        }
+        if ($cache->has($cacheKey)) {
+            return $cache->get($cacheKey);
+        }
+        return null;
     }
 
     public static function validate_object($class)
@@ -189,6 +194,65 @@ class Attribution extends DataObject
         parent::onBeforeWrite();
         $this->AttributeKey = $this->AttributeClass . '|' . $this->AttributeID;
         $this->ObjectKey = $this->ObjectClass . '|' . $this->ObjectID;
+    }
+    
+    /**
+     * This function is triggered early in the request if the "flush" query
+     * parameter has been set. Each class that implements Flushable implements
+     * this function which looks after it's own specific flushing functionality.
+     *
+     * @see FlushMiddleware
+     */
+    public static function flush()
+    {
+        self::get_cache()->clear();
+        self::build_cache();
+    }
+    
+    private static function build_cache() {
+        // build attributes cache
+        $attributes = [];
+        $classes = ClassInfo::subclassesFor(DataObject::class);
+        foreach ($classes as $class) {
+            if ($class::has_extension(Attribute::class)) {
+                self::validate_attribute($class);
+                $attributes[$class] = $class;
+            }
+        }
+        $cache = self::get_cache();
+        $cacheKey = self::get_attributes_cache_key();
+        $cache->set($cacheKey, $attributes);
+        
+        // build objects cache
+        $objects = [];
+        $classes = ClassInfo::subclassesFor(DataObject::class);
+        foreach ($classes as $class) {
+            if ($class::has_extension(Attributable::class)) {
+                $classInst = $class::singleton();
+                if ($classInst->hasMethod('isAttributeFilterOnly')) {
+                    if ($classInst->isAttributeFilterOnly()) {
+                        break;
+                    }
+                }
+                self::validate_object($class);
+                $objects[$class] = $class;
+            }
+        }
+        $cache = self::get_cache();
+        $cacheKey = self::get_objects_cache_key();
+        $cache->set($cacheKey, $objects);
+    }
+    
+    private static function get_cache() {
+        return Injector::inst()->get(CacheInterface::class . '.AttributionCache');
+    }
+    
+    private static function get_attributes_cache_key() {
+        return implode('-', ['Attributes']);
+    }
+    
+    private static function get_objects_cache_key() {
+        return implode('-', ['Objects']);
     }
 
     public static function get_related_objects($attrClassName, array $attrIDs, array $objClassNames)

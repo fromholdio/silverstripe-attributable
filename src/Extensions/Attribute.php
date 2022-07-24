@@ -25,11 +25,6 @@ class Attribute extends DataExtension
         'AttrAttributions' => Attribution::class . '.Attribute'
     ];
 
-    public static function add_to_class($class, $extensionClass, $args = null)
-    {
-        Attribution::register_attribute($class);
-    }
-
     public function updateCMSFields(FieldList $fields)
     {
         $fields->removeByName('AttrAttributions');
