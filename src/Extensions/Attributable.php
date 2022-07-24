@@ -4,10 +4,12 @@ namespace Fromholdio\Attributable\Extensions;
 
 use Fromholdio\Attributable\Model\Attribution;
 use Fromholdio\CommonAncestor\CommonAncestor;
+use SilverStripe\Core\ClassInfo;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\FormField;
 use SilverStripe\Forms\HiddenField;
 use SilverStripe\ORM\DataExtension;
+use SilverStripe\ORM\DataObject;
 
 class Attributable extends DataExtension
 {
@@ -26,16 +28,36 @@ class Attributable extends DataExtension
         'Attributions'
     ];
 
+    private static $cascade_duplicates = [
+        'Attributions'
+    ];
+
     public function getAttributes($attrClass, $scopeObject = null)
     {
         if (!$this->owner->ID) {
             return null;
         }
 
+        if (is_array($attrClass))
+        {
+            $attrClasses = $attrClass;
+            $attrClassesCommon = CommonAncestor::get_closest($attrClasses);
+            if ($attrClassesCommon === DataObject::class) {
+                throw new \InvalidArgumentException(
+                    'If you pass an array of class names to getAttributes they must '
+                    . 'have a common ancestor class other than DataObject.'
+                );
+            }
+        }
+        else {
+            $attrClasses = ClassInfo::subclassesFor($attrClass);
+            $attrClassesCommon = $attrClass;
+        }
+
         $attributions = Attribution::get()->filter([
             'ObjectClass' => $this->owner->getClassName(),
             'ObjectID' => $this->owner->ID,
-            'AttributeClass' => $attrClass
+            'AttributeClass' => $attrClasses
         ]);
 
         $attributeIDs = $attributions->columnUnique('AttributeID');
@@ -47,13 +69,13 @@ class Attributable extends DataExtension
         $filter = ['ID' => $attributeIDs];
 
         if ($scopeObject && $scopeObject->exists()) {
-            $scopeField = $attrClass::singleton()->config()->get('attribute_scope_field');
+            $scopeField = $attrClassesCommon::singleton()->config()->get('attribute_scope_field');
             if ($scopeField) {
                 $filter[$scopeField] = $scopeObject->ID;
             }
         }
 
-        return $attrClass::get()->filter($filter);
+        return $attrClassesCommon::get()->filter($filter);
     }
 
     public function syncAttributes($attrClass, array $attrIDs, $scopeObject = null)
@@ -207,9 +229,7 @@ class Attributable extends DataExtension
             $fields[] = $saveField;
         }
 
-        if ($this->owner->hasMethod('updateAttributesFields')) {
-            $fields = $this->owner->updateAttributesFields($fields);
-        }
+        $this->getOwner()->invokeWithExtensions('updateAttributesFields', $fields);
 
         return $fields;
     }
@@ -272,6 +292,15 @@ class Attributable extends DataExtension
             $classes = Attribution::get_attributes();
         }
 
+        $disallowed = $this->getOwner()->config()->get('disallowed_attributes');
+        if (!empty($disallowed)) {
+            foreach ($disallowed as $class) {
+                if (isset($classes[$class])) {
+                    unset($classes[$class]);
+                }
+            }
+        }
+
         return $classes;
     }
 
@@ -282,5 +311,14 @@ class Attributable extends DataExtension
             return false;
         }
         return isset($allowedAttrs[$className]);
+    }
+
+    public function getRelatedObjectsByAttribute($attribute, array $objClassNames)
+    {
+        return Attribution::get_related_objects(
+            get_class($attribute),
+            [$attribute->ID],
+            $objClassNames
+        );
     }
 }

@@ -4,10 +4,13 @@ namespace Fromholdio\Attributable\Extensions;
 
 use Fromholdio\Attributable\Model\Attribution;
 use Fromholdio\Attributable\Forms\AttributeListboxField;
+use Fromholdio\CommonAncestor\CommonAncestor;
 use SilverStripe\Control\Controller;
+use SilverStripe\Core\ClassInfo;
 use SilverStripe\Forms\DropdownField;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\ORM\DataExtension;
+use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DataObjectInterface;
 
 class Attribute extends DataExtension
@@ -123,25 +126,41 @@ class Attribute extends DataExtension
 
     public function getAttributedObjects($objClassName)
     {
-        if ($this->getOwner()->ID) {
+        if (!$this->getOwner()->ID) {
             return null;
+        }
+
+        if (is_array($objClassName))
+        {
+            $objClasses = $objClassName;
+            $objClassesCommon = CommonAncestor::get_closest($objClasses);
+            if ($objClassesCommon === DataObject::class) {
+                throw new \InvalidArgumentException(
+                    'If you pass an array of class names to getAttributedObjects they must '
+                    . 'have a common ancestor class other than DataObject.'
+                );
+            }
+        }
+        else {
+            $objClasses = ClassInfo::subclassesFor($objClassName);
+            $objClassesCommon = $objClassName;
         }
 
         $attributions = Attribution::get()->filter([
             'AttributeClass' => $this->getOwner()->getClassName(),
             'AttributeID' => $this->getOwner()->ID,
-            'ObjectClass' => $objClassName
+            'ObjectClass' => $objClasses
         ]);
 
         $objectIDs = $attributions->columnUnique('ObjectID');
 
-        if (empty($attributions)) {
+        if (empty($objectIDs)) {
             return null;
         }
 
         $filter = ['ID' => $objectIDs];
 
-        return $objClassName::get()->filter($filter);
+        return $objClassesCommon::get()->filter($filter);
     }
 
     public function getAttributeType()
