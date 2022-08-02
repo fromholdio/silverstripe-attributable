@@ -195,7 +195,7 @@ class Attribution extends DataObject implements Flushable
         $this->AttributeKey = $this->AttributeClass . '|' . $this->AttributeID;
         $this->ObjectKey = $this->ObjectClass . '|' . $this->ObjectID;
     }
-    
+
     /**
      * This function is triggered early in the request if the "flush" query
      * parameter has been set. Each class that implements Flushable implements
@@ -208,13 +208,13 @@ class Attribution extends DataObject implements Flushable
         self::get_cache()->clear();
         self::build_cache();
     }
-    
+
     private static function build_cache() {
         // build attributes cache
         $attributes = [];
         $classes = ClassInfo::subclassesFor(DataObject::class);
         foreach ($classes as $class) {
-            if ($class::has_extension(Attribute::class)) {
+            if ($class::has_extension(Attribute::class, true)) {
                 self::validate_attribute($class);
                 $attributes[$class] = $class;
             }
@@ -222,12 +222,12 @@ class Attribution extends DataObject implements Flushable
         $cache = self::get_cache();
         $cacheKey = self::get_attributes_cache_key();
         $cache->set($cacheKey, $attributes);
-        
+
         // build objects cache
         $objects = [];
         $classes = ClassInfo::subclassesFor(DataObject::class);
         foreach ($classes as $class) {
-            if ($class::has_extension(Attributable::class)) {
+            if ($class::has_extension(Attributable::class, true)) {
                 $classInst = $class::singleton();
                 if ($classInst->hasMethod('isAttributeFilterOnly')) {
                     if ($classInst->isAttributeFilterOnly()) {
@@ -242,15 +242,15 @@ class Attribution extends DataObject implements Flushable
         $cacheKey = self::get_objects_cache_key();
         $cache->set($cacheKey, $objects);
     }
-    
+
     private static function get_cache() {
         return Injector::inst()->get(CacheInterface::class . '.AttributionCache');
     }
-    
+
     private static function get_attributes_cache_key() {
         return implode('-', ['Attributes']);
     }
-    
+
     private static function get_objects_cache_key() {
         return implode('-', ['Objects']);
     }
