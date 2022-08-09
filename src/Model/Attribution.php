@@ -8,6 +8,7 @@ use Psr\SimpleCache\CacheInterface;
 use SilverStripe\Control\Middleware\FlushMiddleware;
 use Fromholdio\CommonAncestor\CommonAncestor;
 use SilverStripe\Core\ClassInfo;
+use SilverStripe\Core\Config\Config;
 use SilverStripe\Core\Flushable;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\ORM\DataObject;
@@ -214,7 +215,9 @@ class Attribution extends DataObject implements Flushable
         $attributes = [];
         $classes = ClassInfo::subclassesFor(DataObject::class);
         foreach ($classes as $class) {
-            if ($class::has_extension(Attribute::class, true)) {
+            $extensions = $class::config()->get('extensions', Config::UNINHERITED);
+            $extensions = array_filter(array_values($extensions ?? []));
+            if (in_array(Attribute::class, $extensions)) {
                 self::validate_attribute($class);
                 $attributes[$class] = $class;
             }
