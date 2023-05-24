@@ -8,8 +8,8 @@ Feel free to submit any questions as issues in the meantime.
 
 ## Requirements
 
-* [silverstripe-framework](https://github.com/silverstripe/silverstripe-cms) ^4
-* [fromholdio/silverstripe-commonancestor](https://github.com/fromholdio/silverstripe-commonancestor) ^1.0
+* [silverstripe-framework](https://github.com/silverstripe/silverstripe-cms) ^4 or ^5
+* [fromholdio/silverstripe-commonancestor](https://github.com/fromholdio/silverstripe-commonancestor) ^1.0 (^1.1 for SS 5 compatibility)
 
 ## Installation
 
