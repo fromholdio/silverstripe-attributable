@@ -10,6 +10,7 @@ use SilverStripe\Forms\FormField;
 use SilverStripe\Forms\HiddenField;
 use SilverStripe\ORM\DataExtension;
 use SilverStripe\ORM\DataObject;
+use SilverStripe\Versioned\Versioned;
 
 class Attributable extends DataExtension
 {
@@ -147,6 +148,12 @@ class Attributable extends DataExtension
         $existing = Attribution::get_from_pair($this->owner, $attribute);
         if ($existing) {
             $this->owner->Attributions()->remove($existing);
+            // mark owner as changed
+            if ($this->owner->hasExtension(Versioned::class)) {
+                $this->owner->writeToStage(Versioned::DRAFT);
+            } else {
+                $this->owner->write();
+            }
         }
     }
 
@@ -175,6 +182,12 @@ class Attributable extends DataExtension
         $attribution->write();
 
         $this->owner->Attributions()->add($attribution);
+        // mark owner as changed
+        if ($this->owner->hasExtension(Versioned::class)) {
+            $this->owner->writeToStage(Versioned::DRAFT);
+        } else {
+            $this->owner->write();
+        }
 
         return $attribution;
     }
