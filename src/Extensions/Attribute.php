@@ -270,7 +270,7 @@ class Attribute extends DataExtension
         }
 
         if ($this->owner->hasMethod('updateAttributeFieldSource')) {
-            $source = $this->owner->updateAttributeFieldObject($source, $scopeObject);
+            $source = $this->owner->updateAttributeFieldSource($source, $scopeObject);
         }
 
         return $source;
