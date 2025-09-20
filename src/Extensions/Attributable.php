@@ -5,14 +5,14 @@ namespace Fromholdio\Attributable\Extensions;
 use Fromholdio\Attributable\Model\Attribution;
 use Fromholdio\CommonAncestor\CommonAncestor;
 use SilverStripe\Core\ClassInfo;
+use SilverStripe\Core\Extension;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\FormField;
 use SilverStripe\Forms\HiddenField;
-use SilverStripe\ORM\DataExtension;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\Versioned\Versioned;
 
-class Attributable extends DataExtension
+class Attributable extends Extension
 {
     private static $attributes_tab_path = 'Root.Attributes';
     private static $attributes_register;
@@ -276,7 +276,7 @@ class Attributable extends DataExtension
                 if (isset($fieldMeta[3]) && isset($fieldMeta[4])) {
                     $attributeScopeClass = $fieldMeta[3];
                     $attributeScopeID = $fieldMeta[4];
-                    $attributeScopeObject = $attributeScopeClass::get_by_id($attributeScopeID);
+                    $attributeScopeObject = $attributeScopeClass::get()->byID($attributeScopeID);
                 }
                 else {
                     $attributeScopeObject = null;

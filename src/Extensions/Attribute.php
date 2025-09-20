@@ -7,13 +7,13 @@ use Fromholdio\Attributable\Forms\AttributeListboxField;
 use Fromholdio\CommonAncestor\CommonAncestor;
 use SilverStripe\Control\Controller;
 use SilverStripe\Core\ClassInfo;
+use SilverStripe\Core\Extension;
 use SilverStripe\Forms\DropdownField;
 use SilverStripe\Forms\FieldList;
-use SilverStripe\ORM\DataExtension;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DataObjectInterface;
 
-class Attribute extends DataExtension
+class Attribute extends Extension
 {
     private static $attribute_force_selection = true;
     private static $attribute_only_one = false;
@@ -276,7 +276,7 @@ class Attribute extends DataExtension
         return $source;
     }
 
-    public function getAttributeFields(DataObjectInterface $object = null)
+    public function getAttributeFields(?DataObjectInterface $object = null)
     {
         $fields = [];
         $scopeObjects = $this->owner->getAttributeScopeObjects();
