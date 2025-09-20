@@ -297,7 +297,7 @@ class Attribute extends Extension
         return $fields;
     }
 
-    public function getAttributeField(DataObjectInterface $object = null, $scopeObject = null)
+    public function getAttributeField(?DataObjectInterface $object = null, $scopeObject = null)
     {
         $onlyOne = $this->owner->config()->get('attribute_only_one');
         $forceSelection = $this->owner->config()->get('attribute_force_selection');
