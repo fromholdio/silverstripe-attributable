@@ -25,6 +25,11 @@ class Attribute extends Extension
         'AttrAttributions' => Attribution::class . '.Attribute'
     ];
 
+    /**
+     * Request-level cache for field sources to avoid repeated queries
+     */
+    private static $_field_source_cache = [];
+
     public function updateCMSFields(FieldList $fields)
     {
         $fields->removeByName('AttrAttributions');
@@ -248,6 +253,14 @@ class Attribute extends Extension
     public function getAttributeFieldSource($scopeObject = null)
     {
         $class = $this->owner->getClassName();
+        $scopeID = $scopeObject ? $scopeObject->ID : 0;
+        $cacheKey = $class . '_' . $scopeID;
+
+        // Check request-level cache first
+        if (isset(self::$_field_source_cache[$cacheKey])) {
+            return self::$_field_source_cache[$cacheKey];
+        }
+
         $scopeField = $this->owner->config()->get('attribute_scope_field');
 
         if ($class::singleton()->hasMethod('getDropdownTitle')) {
@@ -273,7 +286,18 @@ class Attribute extends Extension
             $source = $this->owner->updateAttributeFieldSource($source, $scopeObject);
         }
 
+        // Cache the result for this request
+        self::$_field_source_cache[$cacheKey] = $source;
+
         return $source;
+    }
+
+    /**
+     * Clear the field source cache (called when attributes are modified)
+     */
+    public static function clearFieldSourceCache()
+    {
+        self::$_field_source_cache = [];
     }
 
     public function getAttributeFields(?DataObjectInterface $object = null)

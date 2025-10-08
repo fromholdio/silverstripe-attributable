@@ -4,8 +4,10 @@ namespace Fromholdio\Attributable\Extensions;
 
 use Fromholdio\Attributable\Model\Attribution;
 use Fromholdio\CommonAncestor\CommonAncestor;
+use Psr\SimpleCache\CacheInterface;
 use SilverStripe\Core\ClassInfo;
 use SilverStripe\Core\Extension;
+use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\FormField;
 use SilverStripe\Forms\HiddenField;
@@ -194,19 +196,36 @@ class Attributable extends Extension
 
     public function updateCMSFields(FieldList $fields)
     {
+
         $tabPath = $this->owner->config()->get('attributes_tab_path');
         if ($tabPath) {
             $attrFields = $this->owner->getAttributesFields();
+
             if ($attrFields && is_array($attrFields) && !empty($attrFields)) {
                 $fields->addFieldsToTab($tabPath, $attrFields);
             }
         }
 
         $fields->removeByName('Attributions');
+
     }
 
     public function getAttributesFields($fieldNameKey = 'Attributes')
     {
+        // Try to get from cache first (only for existing records)
+        if ($this->owner->ID) {
+            $cache = $this->getAttributesCMSFieldsCache();
+            $cacheKey = $this->getAttributesFieldsCacheKey($fieldNameKey);
+
+            if ($cache->has($cacheKey)) {
+                $fields = $cache->get($cacheKey);
+                // Fields are cached, but we need to populate current values
+                $this->populateAttributeFieldValues($fields);
+                return $fields;
+            }
+        }
+
+        // Generate fields (not in cache or new record)
         $attrClasses = $this->owner->getAllowedAttributes();
         $fields = [];
         $fieldNames = [];
@@ -244,7 +263,107 @@ class Attributable extends Extension
 
         $this->getOwner()->invokeWithExtensions('updateAttributesFields', $fields);
 
+        // Cache the field structure (with values) for this object class
+        if ($this->owner->ID) {
+            $cache = $this->getAttributesCMSFieldsCache();
+            $cacheKey = $this->getAttributesFieldsCacheKey($fieldNameKey);
+            $cache->set($cacheKey, $fields, 3600); // 1 hour TTL
+        }
+
         return $fields;
+    }
+
+    /**
+     * Populate current attribute values into cached fields
+     */
+    protected function populateAttributeFieldValues($fields)
+    {
+        if (!$this->owner->ID || empty($fields)) {
+            return;
+        }
+
+        // Get all current attributions for this object
+        $attrClasses = $this->owner->getAllowedAttributes();
+        $currentAttributions = Attribution::get()->filter([
+            'ObjectClass' => $this->owner->getClassName(),
+            'ObjectID' => $this->owner->ID,
+            'AttributeClass' => array_keys($attrClasses)
+        ]);
+
+        // Group by attribute class for easier lookup
+        $attributionsByClass = [];
+        foreach ($currentAttributions as $attribution) {
+            $class = $attribution->AttributeClass;
+            if (!isset($attributionsByClass[$class])) {
+                $attributionsByClass[$class] = [];
+            }
+            $attributionsByClass[$class][] = $attribution->AttributeID;
+        }
+
+        // Populate field values
+        foreach ($fields as $field) {
+            if (!is_a($field, FormField::class)) {
+                continue;
+            }
+
+            $fieldName = $field->getName();
+            if ($fieldName === 'AttributesFieldNames') {
+                continue;
+            }
+
+            // Parse field name to get attribute class
+            $fieldMeta = explode('|', $fieldName);
+            if (isset($fieldMeta[1])) {
+                $attrClass = $fieldMeta[1];
+                $mode = $fieldMeta[2] ?? 'many';
+
+                if (isset($attributionsByClass[$attrClass])) {
+                    if ($mode === 'one') {
+                        $field->setValue($attributionsByClass[$attrClass][0] ?? null);
+                    } else {
+                        $field->setValue($attributionsByClass[$attrClass]);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Get the CMS fields cache instance
+     */
+    protected function getAttributesCMSFieldsCache()
+    {
+        return Injector::inst()->get(CacheInterface::class . '.AttributableCMSFieldsCache');
+    }
+
+    /**
+     * Get cache key for this object's attribute fields
+     * Note: Cache keys cannot contain: {}()/\@:
+     */
+    protected function getAttributesFieldsCacheKey($fieldNameKey = 'Attributes')
+    {
+        // Replace backslashes and other reserved characters with underscores
+        $className = str_replace(['\\', '{', '}', '(', ')', '/', '@', ':'], '_', $this->owner->getClassName());
+        return $className . '_' . $fieldNameKey;
+    }
+
+    /**
+     * Clear the CMS fields cache for this object class
+     */
+    public function clearAttributesCMSFieldsCache()
+    {
+        $cache = $this->getAttributesCMSFieldsCache();
+        $cacheKey = $this->getAttributesFieldsCacheKey();
+        $cache->delete($cacheKey);
+    }
+
+    /**
+     * Clear all CMS fields caches (called when attribute structure changes)
+     */
+    public static function clearAllAttributesCMSFieldsCaches()
+    {
+        $cache = Injector::inst()->get(CacheInterface::class . '.AttributableCMSFieldsCache');
+        $cache->clear();
     }
 
     public function saveAttributesFieldNames($value)

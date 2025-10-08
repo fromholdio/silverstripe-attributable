@@ -35,6 +35,25 @@ class Attribution extends DataObject implements Flushable
         'Object' => DataObject::class
     ];
 
+    private static $indexes = [
+        'ObjectLookup' => [
+            'type' => 'index',
+            'columns' => ['ObjectClass', 'ObjectID', 'AttributeClass'],
+        ],
+        'AttributeLookup' => [
+            'type' => 'index',
+            'columns' => ['AttributeClass', 'AttributeID', 'ObjectClass'],
+        ],
+        'ObjectKey' => [
+            'type' => 'index',
+            'columns' => ['ObjectKey'],
+        ],
+        'AttributeKey' => [
+            'type' => 'index',
+            'columns' => ['AttributeKey'],
+        ],
+    ];
+
     public static function get_attributes()
     {
         // retrieve from cache
@@ -208,6 +227,18 @@ class Attribution extends DataObject implements Flushable
     {
         self::get_cache()->clear();
         self::build_cache();
+
+        // Also clear the field source and CMS fields caches
+        $fieldSourceCache = Injector::inst()->get(CacheInterface::class . '.AttributeFieldSourceCache');
+        $fieldSourceCache->clear();
+
+        $cmsFieldsCache = Injector::inst()->get(CacheInterface::class . '.AttributableCMSFieldsCache');
+        $cmsFieldsCache->clear();
+
+        // Clear the request-level cache
+        if (class_exists('Fromholdio\Attributable\Extensions\Attribute')) {
+            \Fromholdio\Attributable\Extensions\Attribute::clearFieldSourceCache();
+        }
     }
 
     private static function build_cache() {

@@ -7,3 +7,11 @@ SilverStripe\Core\Injector\Injector:
     factory: SilverStripe\Core\Cache\CacheFactory
     constructor:
       namespace: "AttributionCache"
+  Psr\SimpleCache\CacheInterface.AttributeFieldSourceCache:
+    factory: SilverStripe\Core\Cache\CacheFactory
+    constructor:
+      namespace: "AttributeFieldSourceCache"
+  Psr\SimpleCache\CacheInterface.AttributableCMSFieldsCache:
+    factory: SilverStripe\Core\Cache\CacheFactory
+    constructor:
+      namespace: "AttributableCMSFieldsCache"
