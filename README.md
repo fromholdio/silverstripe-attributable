@@ -20,3 +20,9 @@ Feel free to submit any questions as issues in the meantime.
 Install, and then apply the extensions to your object classes.
 
 Docs to come. In the meantime please submit questions as issues.
+
+## New form fields
+
+AttributeMatchField and AttributeMatchModeField provide a marked up and styled layout of attributes picker fields in a filtering context. Select your attributes, and nominate whether you're filtering by match any or by matching all.
+
+![attributematchingfields.png](docs/en/_images/attributematchingfields.png)

@@ -1,0 +1,12 @@
+.AttributeMatchField.attributematch {
+  display: grid;
+  grid-template-columns: 120px auto;
+  grid-column-gap: 15px;
+}
+
+.AttributeMatchField.attributematch .AttributeMatchField__fields.form__field-holder {
+  display: grid;
+  grid-template-columns: auto 150px;
+  grid-column-gap: 9px;
+  padding-left: 0;
+}
