@@ -244,7 +244,7 @@ class Attribute extends Extension
         }
 
         if ($this->owner->hasMethod('updateAttributeFieldLabel')) {
-            $label = $this->owner->updateAttributeFieldLabel($label);
+            $label = $this->owner->updateAttributeFieldLabel($label, $scopeObject);
         }
 
         return $label;

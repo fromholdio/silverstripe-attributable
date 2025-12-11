@@ -1,9 +1,9 @@
 {
 	"name": "fromholdio/silverstripe-attributable",
 	"type": "silverstripe-vendormodule",
-	"description": "A SilverStripe module providing a global attribution system for categorising, tagging, etc any/all objects and/or pages across your project.",
+	"description": "Tags, categories, related posts — every project needs ways to connect content. This module gives you a single, flexible system using one consistent pattern for all of them.",
 	"license": "BSD-3-Clause",
-	"keywords": ["silverstripe", "attribution", "attribute", "category", "tag", "taxonomy", "related"],
+	"keywords": ["silverstripe", "attribution", "attribute", "category", "tag", "taxonomy", "related", "tags", "tagging", "categories", "relationships", "many-many", "polymorphic", "related-content", "cross-linking", "cms"],
 	"homepage": "https://github.com/fromholdio/silverstripe-attributable",
 	"support": {
 		"issues": "https://github.com/fromholdio/silverstripe-attributable/issues"
@@ -13,7 +13,7 @@
 		"homepage": "https://fromhold.io"
 	}],
     "require": {
-        "silverstripe/framework": "~4.0 || ~5.0 || ^6.0",
+        "silverstripe/framework": "^5.0 || ^6.0",
         "fromholdio/silverstripe-commonancestor": "^1.0"
     },
 	"autoload": {

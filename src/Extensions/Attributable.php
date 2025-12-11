@@ -149,7 +149,11 @@ class Attributable extends Extension
 
         $existing = Attribution::get_from_pair($this->owner, $attribute);
         if ($existing) {
-            $this->owner->Attributions()->remove($existing);
+            // Delete the Attribution record rather than using remove() which
+            // only sets the foreign key to 0, orphaning the record.
+            // For Versioned records, delete() removes from Draft; the $owns
+            // relationship handles Live cleanup when the owner publishes.
+            $existing->delete();
             // mark owner as changed
             if ($this->owner->hasExtension(Versioned::class)) {
                 $this->owner->writeToStage(Versioned::DRAFT);
@@ -282,22 +286,37 @@ class Attributable extends Extension
             return;
         }
 
-        // Get all current attributions for this object
+        // Get all current attributions for this object.
+        // Attribution records store the concrete class, not the configured base class,
+        // so we need to expand each configured class to include all its subclasses.
         $attrClasses = $this->owner->getAllowedAttributes();
+
+        $allAttrClasses = [];
+        $concreteToBaseMap = [];
+        foreach (array_keys($attrClasses) as $baseClass) {
+            $subclasses = ClassInfo::subclassesFor($baseClass);
+            foreach ($subclasses as $subclass) {
+                $allAttrClasses[] = $subclass;
+                $concreteToBaseMap[$subclass] = $baseClass;
+            }
+        }
+
         $currentAttributions = Attribution::get()->filter([
             'ObjectClass' => $this->owner->getClassName(),
             'ObjectID' => $this->owner->ID,
-            'AttributeClass' => array_keys($attrClasses)
+            'AttributeClass' => $allAttrClasses
         ]);
 
-        // Group by attribute class for easier lookup
+        // Group by BASE attribute class for easier lookup
+        // This maps concrete classes back to their configured base class
         $attributionsByClass = [];
         foreach ($currentAttributions as $attribution) {
-            $class = $attribution->AttributeClass;
-            if (!isset($attributionsByClass[$class])) {
-                $attributionsByClass[$class] = [];
+            $concreteClass = $attribution->AttributeClass;
+            $baseClass = $concreteToBaseMap[$concreteClass] ?? $concreteClass;
+            if (!isset($attributionsByClass[$baseClass])) {
+                $attributionsByClass[$baseClass] = [];
             }
-            $attributionsByClass[$class][] = $attribution->AttributeID;
+            $attributionsByClass[$baseClass][] = $attribution->AttributeID;
         }
 
         // Populate field values
@@ -366,29 +385,68 @@ class Attributable extends Extension
         $cache->clear();
     }
 
+    /**
+     * Called via form field saveInto() for the hidden AttributesFieldNames field.
+     * Stores the field names in dynamic data for deferred processing.
+     *
+     * This deferred approach solves two problems:
+     * 1. Field processing order - when attribute fields are moved to later tabs,
+     *    they may not have been processed yet when this method is called.
+     * 2. New record IDs - ensures the owner has a valid ID before creating Attribution records.
+     */
     public function saveAttributesFieldNames($value)
     {
-        $fieldNames = explode(',', $value);
+        $this->owner->setDynamicData('_attributesFieldNames', $value);
+    }
+
+    /**
+     * Process attribute field values after the record has been written.
+     */
+    public function onAfterWrite()
+    {
+        $this->owner->processStoredAttributeFieldNames();
+    }
+
+    /**
+     * Process attribute field values when write() was called but no DB write occurred.
+     * This handles the case where only attribute selections changed (no $db field changes).
+     */
+    public function onAfterSkippedWrite()
+    {
+        $this->owner->processStoredAttributeFieldNames();
+    }
+
+    /**
+     * Process stored attribute field names and sync attributes.
+     * Called from both onAfterWrite() and onAfterSkippedWrite().
+     */
+    public function processStoredAttributeFieldNames(): void
+    {
+        $fieldNamesValue = $this->owner->getDynamicData('_attributesFieldNames');
+
+        if ($fieldNamesValue === null) {
+            return;
+        }
+
+        // Clear immediately to prevent re-processing
+        $this->owner->setDynamicData('_attributesFieldNames', null);
+
+        $fieldNames = explode(',', $fieldNamesValue);
 
         foreach ($fieldNames as $fieldName) {
-
             $fieldMeta = explode('|', $fieldName);
             if (isset($fieldMeta[2])) {
-
                 $attributeClass = $fieldMeta[1];
                 $attributeMode = $fieldMeta[2];
                 $attributeValue = $this->owner->{$fieldName};
 
                 if ($attributeMode === 'one') {
                     $values = [$attributeValue];
-                }
-                else if ($attributeMode === 'many') {
+                } elseif ($attributeMode === 'many') {
                     $values = explode(',', $attributeValue);
-                }
-                else {
+                } else {
                     throw new \UnexpectedValueException(
-                        'Should not have reached here in Attributable. '
-                        . 'Something wrong with $attributeMode'
+                        'Invalid $attributeMode in Attributable::processStoredAttributeFieldNames()'
                     );
                 }
 
@@ -396,8 +454,7 @@ class Attributable extends Extension
                     $attributeScopeClass = $fieldMeta[3];
                     $attributeScopeID = $fieldMeta[4];
                     $attributeScopeObject = $attributeScopeClass::get()->byID($attributeScopeID);
-                }
-                else {
+                } else {
                     $attributeScopeObject = null;
                 }
 
