@@ -293,7 +293,7 @@ class Attributable extends Extension
 
         $allAttrClasses = [];
         $concreteToBaseMap = [];
-        foreach (array_keys($attrClasses) as $baseClass) {
+        foreach ($attrClasses as $baseClass) {
             $subclasses = ClassInfo::subclassesFor($baseClass);
             foreach ($subclasses as $subclass) {
                 $allAttrClasses[] = $subclass;
@@ -469,7 +469,7 @@ class Attributable extends Extension
         if ($allowed && !empty($allowed)) {
             $valid = Attribution::validate_attributes($allowed);
             if ($valid === true) {
-                $classes = $allowed;
+                $classes = $this->normaliseAttributeClasses($allowed);
             }
             else {
                 throw new \UnexpectedValueException(
@@ -478,7 +478,7 @@ class Attributable extends Extension
             }
         }
         else {
-            $classes = Attribution::get_attributes();
+            $classes = $this->normaliseAttributeClasses(Attribution::get_attributes());
         }
 
         $disallowed = $this->getOwner()->config()->get('disallowed_attributes');
@@ -491,6 +491,16 @@ class Attributable extends Extension
         }
 
         return $classes;
+    }
+
+    protected function normaliseAttributeClasses($classes)
+    {
+        $classes = array_values($classes ?? []);
+        if (empty($classes)) {
+            return [];
+        }
+
+        return array_combine($classes, $classes);
     }
 
     public function isAllowedAttribute($className)
